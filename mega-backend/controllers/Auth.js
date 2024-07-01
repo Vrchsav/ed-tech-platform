@@ -6,6 +6,7 @@ const validator = require("email-validator");
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const mailSender = require('../utils/mailSender');
 require('dotenv').config()
 
 
@@ -179,15 +180,80 @@ exports.login = async (req, res) => {
             const payload = {
                 email: user.email,
                 id: user._id,
-                role: user.role,
+                accountType: user.accountType,
 
             }
             const token = jwt.sign(payload, process.env.JWT_SECRET, {
                 expiresIn: "2h",
             })
-        };
+        
+        user.token = token;
+        user.password = undefined;
+        const options = {
+            expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+            httpOnly: true
+        }
+        res.cookie("token", token, options).status(200).json({
+            success: true,
+            user,
+            token,
+            message: "User logged in successfully"
+        })
+    }else {
+        res.status(401).json({
+            success: false,
+            message: "Incorrect password"
+        })
+    }
 
     } catch (error) {
 
+        res.status(500).json({
+            success: false,
+            message: "Login failed" + " " + error.message
+        })
+
+    }
+}
+//=======================================================================================================================================
+exports.changePassword = async (req, res) => {
+    try {
+        const { oldPassword, newPassword, confirmNewPassword } = req.body;
+
+        if (!oldPassword || !newPassword || !confirmNewPassword) {
+            return res.status(401).json({
+                success: false,
+                message: "All fields are required"
+            })
+        }
+
+        if (newPassword !== confirmNewPassword) {
+            return res.status(401).json({
+                success: false,
+                message: "Passwords do not match"
+            })
+        }
+
+        const user = await User.updateOne({ password: oldPassword }, { $set: { password: newPassword } });
+        if (user) {
+            const mailsend=await mailSender(user.email,"Password changed successfully","Password changed successfully");
+        res.status(200).json({
+            success: true,
+            message: "Password changed successfully"
+        })}
+        else {
+            res.status(401).json({
+                success: false,
+                message: "not able to change password"
+            })
+        }
+
+    } catch (error) {
+
+        res.status(500).json({
+            success: false,
+            message: "Password change failed" + " " + error.message
+        })
+        
     }
 }
