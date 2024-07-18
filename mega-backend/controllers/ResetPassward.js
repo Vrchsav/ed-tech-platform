@@ -22,9 +22,10 @@ exports.resetPasswardToken = async (req, res) => {
                 message: "User not found"
             })
         }
+
         const token = crypto.randomUUID();
         const updateDetails = await User.findOneAndUpdate({ email: email }, {   token: token, resetPasswordExpires: Date.now() + 5 * 60 * 1000 }, { new: true });
-        const url = `http://localhost:3000/reset-password/${token}`;
+        const url = `http://localhost:3000/update-password/${token}`;
         await mailSender(email, "Reset Password", `Click here to reset your password ${url}`); 
         return res.json({ success: true, message: "Password reset link sent to your email" })
 
